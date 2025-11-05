@@ -1,36 +1,273 @@
 #include <iostream>
 #include <vector>
 #include <algorithm>
-#include <set>
-
+#include <cstring>
+#include <cmath>
+#include <climits>
 using namespace std;
 
-int main() {
-    vector<int> p(4);
-    
-    // è¯»å…¥4ä¸ªé€‰ä¸­çš„ç‚¹
-    for (int i = 0; i < 4; i++) {
-        cin >> p[i];
+const int MAXN = 1005;
+const long long INF = 1e18;
+
+int n;
+vector<int> p, q;
+long long cost[MAXN][MAXN];
+long long lx[MAXN], ly[MAXN];
+int match[MAXN]; // match[j] ±íÊ¾q[j]Æ¥Åäµ½pÖÐµÄÄÄ¸öµã
+bool visx[MAXN], visy[MAXN];
+long long slack[MAXN];
+int pre[MAXN];
+
+// ¼ÆËã»·ÉÏ¾àÀë
+long long ringDist(int a, int b) {
+    long long d = abs(a - b);
+    return min(d, 2LL * n - d);
+}
+
+// BFSÔö¹ã
+bool bfs(int s) {
+    memset(visx, false, sizeof(visx));
+    memset(visy, false, sizeof(visy));
+    memset(pre, -1, sizeof(pre));
+    for (int i = 0; i < n; i++) {
+        slack[i] = INF;
     }
     
-    // ä½¿ç”¨setè®°å½•å·²é€‰ä¸­çš„ç‚¹ï¼Œæ–¹ä¾¿æŸ¥æ‰¾å‰©ä½™çš„ç‚¹
-    set<int> selected(p.begin(), p.end());
+    int queue[MAXN];
+    int head = 0, tail = 0;
+    queue[tail++] = s;
+    visx[s] = true;
     
-    // æ‰¾å‡ºå‰©ä½™çš„4ä¸ªç‚¹
-    vector<int> q;
-    for (int i = 1; i <= 8; i++) {
-        if (selected.find(i) == selected.end()) {
+    while (true) {
+        // À©Õ¹ÏàµÈ×ÓÍ¼
+        while (head < tail) {
+            int x = queue[head++];
+            for (int y = 0; y < n; y++) {
+                if (visy[y]) continue;
+                
+                long long delta = lx[x] + ly[y] - cost[x][y];
+                
+                if (delta == 0) {
+                    visy[y] = true;
+                    pre[y] = x;
+                    
+                    if (match[y] == -1) {
+                        // ÕÒµ½Ôö¹ãÂ·
+                        while (y != -1) {
+                            int last_x = pre[y];
+                            int last_y = -1;
+                            if (last_x != -1) {
+                                for (int j = 0; j < n; j++) {
+                                    if (match[j] == last_x) {
+                                        last_y = j;
+                                        break;
+                                    }
+                                }
+                            }
+                            match[y] = pre[y];
+                            y = last_y;
+                        }
+                        return true;
+                    } else {
+                        int next_x = match[y];
+                        visx[next_x] = true;
+                        queue[tail++] = next_x;
+                    }
+                } else if (slack[y] > delta) {
+                    slack[y] = delta;
+                    pre[y] = x;
+                }
+            }
+        }
+        
+        // µ÷Õû¶¥±ê
+        long long delta = INF;
+        for (int y = 0; y < n; y++) {
+            if (!visy[y] && slack[y] < delta) {
+                delta = slack[y];
+            }
+        }
+        
+        if (delta == INF) return false;
+        
+        for (int x = 0; x < n; x++) {
+            if (visx[x]) lx[x] -= delta;
+        }
+        for (int y = 0; y < n; y++) {
+            if (visy[y]) ly[y] += delta;
+            else slack[y] -= delta;
+        }
+        
+        // ½«ÐÂ¼ÓÈëÏàµÈ×ÓÍ¼µÄ±ß¼ÓÈë
+        head = 0;
+        tail = 0;
+        for (int y = 0; y < n; y++) {
+            if (!visy[y] && slack[y] == 0) {
+                visy[y] = true;
+                
+                if (match[y] == -1) {
+                    // ÕÒµ½Ôö¹ãÂ·
+                    while (y != -1) {
+                        int last_x = pre[y];
+                        int last_y = -1;
+                        if (last_x != -1) {
+                            for (int j = 0; j < n; j++) {
+                                if (match[j] == last_x) {
+                                    last_y = j;
+                                    break;
+                                }
+                            }
+                        }
+                        match[y] = pre[y];
+                        y = last_y;
+                    }
+                    return true;
+                } else {
+                    int next_x = match[y];
+                    if (!visx[next_x]) {
+                        visx[next_x] = true;
+                        queue[tail++] = next_x;
+                    }
+                }
+            }
+        }
+    }
+}
+
+void KM() {
+    // ³õÊ¼»¯¶¥±ê - ¶ÔÓÚ×îÐ¡È¨Æ¥Åä£¬Ê¹ÓÃ¸ºÈ¨ÖØ
+    for (int i = 0; i < n; i++) {
+        lx[i] = -INF;
+        for (int j = 0; j < n; j++) {
+            lx[i] = max(lx[i], cost[i][j]);
+        }
+    }
+    memset(ly, 0, sizeof(ly));
+    memset(match, -1, sizeof(match));
+    
+    // ÎªÃ¿¸öp[i]Ñ°ÕÒÆ¥Åä
+    for (int i = 0; i < n; i++) {
+        bfs(i);
+    }
+}
+
+// ¼ÆËãµãxµÄ¶ÔÃæ£¨»·ÉÏÏà¾ànµÄµã£©
+int getOpposite(int x) {
+    int opposite = x + n;
+    if (opposite > 2 * n) {
+        opposite -= 2 * n;
+    }
+    return opposite;
+}
+
+// ÔÚ»·ÉÏ»ñÈ¡ÓëµãxÏà¾àdistµÄµã
+int getPointAtDistance(int x, int dist) {
+    int result = x + dist;
+    if (result > 2 * n) result -= 2 * n;
+    if (result < 1) result += 2 * n;
+    return result;
+}
+
+int main() {
+    n = 4; // ¹Ì¶¨n=4
+    
+    // µÚÒ»ÐÐ¶ÁÈ¡m
+    int m;
+    cin >> m;
+    cin.ignore(); // ºöÂÔµÚÒ»ÐÐÄ©Î²µÄ»»ÐÐ·û
+    
+    // µÚ¶þÐÐ¶ÁÈ¡p£¬¿ÉÄÜ´ø¿Õ¸ñÒ²¿ÉÄÜ²»´ø¿Õ¸ñ
+    string line;
+    getline(cin, line);
+    
+    p.resize(n);
+    vector<bool> used(2 * n + 1, false);
+    vector<bool> inP(2 * n + 1, false);
+    
+    // ´Ó×Ö·û´®ÖÐÌáÈ¡ËùÓÐÊý×Ö×Ö·û
+    int idx = 0;
+    for (char ch : line) {
+        if (ch >= '1' && ch <= '8' && idx < n) {
+            p[idx] = ch - '0';
+            used[p[idx]] = true;
+            inP[p[idx]] = true;
+            idx++;
+        }
+    }
+    
+    // ¹¹½¨q¼¯ºÏ
+    for (int i = 1; i <= 2 * n; i++) {
+        if (!used[i]) {
             q.push_back(i);
         }
     }
     
-    // å¯¹på’Œqæ•°ç»„æŽ’åº
-    sort(p.begin(), p.end());
-    sort(q.begin(), q.end());
+    // ¹¹½¨´ú¼Û¾ØÕó£¨Ê¹ÓÃ¸ºÊý£¬ÒòÎªKMËã·¨Çó×î´óÈ¨Æ¥Åä£©
+    for (int i = 0; i < n; i++) {
+        for (int j = 0; j < n; j++) {
+            long long dist = ringDist(p[i], q[j]);
+            cost[i][j] = -(dist * dist); // ¸ºÊý×ª»»ÎªÇó×îÐ¡
+        }
+    }
     
-    // æŒ‰é¡ºåºè¾“å‡ºé…å¯¹ç»“æžœ
-    for (int i = 0; i < 4; i++) {
-        cout << p[i] << " -> " << q[i] << endl;
+    // ÔËÐÐKMËã·¨
+    KM();
+    
+    // ¼ÆËã×Ü»¨·Ñ
+    long long totalCost = 0;
+    vector<int> result(n);
+    for (int j = 0; j < n; j++) {
+        int i = match[j];
+        if (i != -1) {
+            result[i] = j;
+            long long dist = ringDist(p[i], q[j]);
+            totalCost += dist * dist;
+        }
+    }
+    
+    // Êä³ö×îÓÅÆ¥Åä
+    for (int i = 0; i < n; i++) {
+        cout << p[i] << " -> " << q[result[i]] << endl;
+    }
+    cout << endl;
+    
+    // ¹¹½¨qµÄ±ê¼ÇÊý×é
+    vector<bool> inQ(2 * n + 1, false);
+    for (int i = 0; i < n; i++) {
+        inQ[q[i]] = true;
+    }
+    
+    // Ñ°ÕÒ°²È«µãk
+    // k±ØÐëÔÚqÖÐ£¬ÇÒkµÄ¶ÔÃæ±ØÐëÔÚpÖÐ
+    int k = -1;
+    
+    // Ê×ÏÈ¼ì²émÊÇ·ñÂú×ãÌõ¼þ
+    int m_opposite = getOpposite(m);
+    if (inQ[m] && inP[m_opposite]) {
+        k = m;
+    } else {
+        // ÔÚm¸½½üÕÒ×î½üµÄÂú×ãÌõ¼þµÄµã
+        // °´¾àÀë´ÓÐ¡µ½´óËÑË÷
+        for (int dist = 1; dist <= n; dist++) {
+            // ³¢ÊÔË³Ê±Õë·½Ïò
+            int candidate1 = getPointAtDistance(m, dist);
+            if (inQ[candidate1] && inP[getOpposite(candidate1)]) {
+                k = candidate1;
+                break;
+            }
+            
+            // ³¢ÊÔÄæÊ±Õë·½Ïò
+            int candidate2 = getPointAtDistance(m, -dist);
+            if (inQ[candidate2] && inP[getOpposite(candidate2)]) {
+                k = candidate2;
+                break;
+            }
+        }
+    }
+    
+    // Êä³ö°²È«µã
+    if (k != -1) {
+        cout << "°²È«µã:" << k << endl;
     }
     
     return 0;
