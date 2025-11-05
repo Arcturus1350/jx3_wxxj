@@ -2,6 +2,7 @@
 #include <vector>
 #include <algorithm>
 #include <cstring>
+#include <Windows.h>
 #include <cmath>
 #include <climits>
 using namespace std;
@@ -267,9 +268,9 @@ int main() {
     
     // 输出安全点
     if (k != -1) {
-        cout << "安全点:" << k << endl;
+        cout << "安全点:" << k << endl<<endl;
     }
-    
+
+    system("pause"); // 等待用户按下任意键
     return 0;
 }
-
