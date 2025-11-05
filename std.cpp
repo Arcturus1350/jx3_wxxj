@@ -232,37 +232,44 @@ int main() {
     }
     cout << endl;
     
-    // 构建q的标记数组
-    vector<bool> inQ(2 * n + 1, false);
-    for (int i = 0; i < n; i++) {
-        inQ[q[i]] = true;
-    }
-    
-    // 寻找安全点k
-    // k必须在q中，且k的对面必须在p中
+    // 寻找最优安全点k
+    // k可以是1-8中的任意点，只需要k的对面在p中
+    // 优先选择靠近m的点，如有多个等距候选则选择让q集合到k距离和最小的
     int k = -1;
     
-    // 首先检查m是否满足条件
+    // 首先检查m是否满足条件（m的对面在p中）
     int m_opposite = getOpposite(m);
-    if (inQ[m] && inP[m_opposite]) {
+    if (inP[m_opposite]) {
         k = m;
     } else {
-        // 在m附近找最近的满足条件的点
-        // 按距离从小到大搜索
+        // 在m附近按距离搜索
         for (int dist = 1; dist <= n; dist++) {
-            // 尝试顺时针方向
-            int candidate1 = getPointAtDistance(m, dist);
-            if (inQ[candidate1] && inP[getOpposite(candidate1)]) {
+            int candidate1 = getPointAtDistance(m, dist);   // m+dist
+            int candidate2 = getPointAtDistance(m, -dist);  // m-dist
+            
+            bool valid1 = inP[getOpposite(candidate1)];
+            bool valid2 = inP[getOpposite(candidate2)];
+            
+            if (valid1 && valid2) {
+                // 两个都符合条件，计算所有q中点到候选点的距离和
+                long long sum1 = 0, sum2 = 0;
+                for (int i = 0; i < n; i++) {
+                    sum1 += ringDist(q[i], candidate1);
+                    sum2 += ringDist(q[i], candidate2);
+                }
+                // 选择距离和最小的
+                k = (sum1 <= sum2) ? candidate1 : candidate2;
+                break;
+            } else if (valid1) {
+                // 只有candidate1符合条件
                 k = candidate1;
                 break;
-            }
-            
-            // 尝试逆时针方向
-            int candidate2 = getPointAtDistance(m, -dist);
-            if (inQ[candidate2] && inP[getOpposite(candidate2)]) {
+            } else if (valid2) {
+                // 只有candidate2符合条件
                 k = candidate2;
                 break;
             }
+            // 两个都不符合，继续检查下一个距离
         }
     }
     
